@@ -1,35 +1,65 @@
 <?php
+// Verifica se o usuário está autenticado
 require_once('../assets/config/auth.php');
+
+// Faz a conexão com o banco de dados
 require_once('../assets/config/db.php');
 
+// Variável para armazenar mensagens de sucesso (criar, editar, excluir)
 $success_msg = "";
 
+// Verifica se há envio do formulário via POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $action = $_POST['action'] ?? '';
-  $id = $_POST['id'] ?? '';
-  $title = trim($_POST['title'] ?? '');
-  $body = trim($_POST['body'] ?? '');
-  $tag = $_POST['tag'] ?? 'Sistema';
 
+  // Obtém os valores enviados pelo formulário
+  $action = $_POST['action'] ?? '';   // Ação: create / update / delete
+  $id = $_POST['id'] ?? '';           // ID do aviso (para editar/excluir)
+  $title = trim($_POST['title'] ?? ''); // Título do aviso
+  $body = trim($_POST['body'] ?? '');   // Corpo da mensagem
+  $tag = $_POST['tag'] ?? 'Sistema';    // Categoria do aviso
+
+  // -------------------------------
+  // CRIAR NOVO AVISO
+  // -------------------------------
   if ($action === 'create') {
     if ($title && $body) {
+
+      // Prepara o INSERT no banco
       $stmt = $mysqli->prepare("INSERT INTO notices(title, body, tag) VALUES (?, ?, ?)");
       $stmt->bind_param('sss', $title, $body, $tag);
+
+      // Executa e exibe mensagem de sucesso
       if ($stmt->execute()) {
         $success_msg = "Aviso criado com sucesso!";
       }
     }
-  } elseif ($action === 'update' && $id) {
+  }
+
+  // -------------------------------
+  // ATUALIZAR AVISO
+  // -------------------------------
+  elseif ($action === 'update' && $id) {
     if ($title && $body) {
+
+      // Atualiza o registro pelo ID
       $stmt = $mysqli->prepare("UPDATE notices SET title=?, body=?, tag=? WHERE id=?");
       $stmt->bind_param('sssi', $title, $body, $tag, $id);
+
       if ($stmt->execute()) {
         $success_msg = "Aviso atualizado com sucesso!";
       }
     }
-  } elseif ($action === 'delete' && $id) {
+  }
+
+  // -------------------------------
+  // EXCLUIR AVISO
+  // -------------------------------
+  elseif ($action === 'delete' && $id) {
+
+    // Deleta o aviso pelo ID
     $stmt = $mysqli->prepare("DELETE FROM notices WHERE id=?");
     $stmt->bind_param('i', $id);
+
     if ($stmt->execute()) {
       $success_msg = "Aviso excluído com sucesso!";
     }
@@ -42,52 +72,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Título da aba -->
   <title>Avisos - PagTrem</title>
 
+  <!-- CSS do sistema -->
   <link href="../assets/css/styles.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet">
 
+  <!-- Ícones Remix -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet">
 </head>
 
 <body>
 
   <div class="layout-wrapper">
+
+    <!-- Menu lateral -->
     <?php include '_partials/sidebar_admin.php'; ?>
 
     <div class="main-content">
+
+      <!-- Cabeçalho da página -->
       <div class="top-header">
         <h1><i class="ri-notification-3-line"></i> Avisos</h1>
       </div>
 
       <div class="container">
 
+        <!-- Mensagem de Sucesso -->
         <?php if ($success_msg): ?>
           <div class="badge success" style="margin-bottom: 24px; width: 100%; justify-content: center; padding: 12px;">
             <?php echo $success_msg; ?>
           </div>
         <?php endif; ?>
 
+        <!-- GRID DE AVISOS -->
         <div class="notice-grid">
           <?php
+
+          // Busca todos os avisos do banco
           $res = $mysqli->query("SELECT * FROM notices ORDER BY id DESC");
+
+          // Se existem avisos
           if ($res->num_rows > 0) {
+
+            // Loop por cada aviso encontrado
             while ($n = $res->fetch_assoc()) {
+
+              // Define a cor da tag (Sistema / Manutenção / Novidades)
               $badge = match ($n['tag']) {
                 'Manutenção' => '<span class="badge red">Manutenção</span>',
                 'Novidades' => '<span class="badge blue">Novidades</span>',
                 default => '<span class="badge">Sistema</span>',
               };
 
-              // Prepare data for JS
+              // Transforma os dados em JSON para enviar ao JavaScript
               $jsonData = htmlspecialchars(json_encode($n), ENT_QUOTES, 'UTF-8');
 
+              // Card do aviso
               echo "
               <div class='notice-card' onclick='editNotice($jsonData)' style='cursor: pointer;'>
+
                 <div class='notice-top'>
                   <div class='notice-title'>" . htmlspecialchars($n['title']) . "</div>
                   $badge
                 </div>
+
                 <div class='notice-body'>" . nl2br(htmlspecialchars($n['body'])) . "</div>
+
                 <div class='notice-footer'>
                   <div class='notice-date'>
                     <i class='ri-calendar-line'></i>
@@ -98,9 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   </div>
                   <i class='ri-pencil-line' style='color: var(--muted);'></i>
                 </div>
+
               </div>";
             }
-          } else {
+          }
+
+          // Caso não exista nenhum aviso
+          else {
             echo "<p class='text-muted' style='grid-column: 1/-1;'>Nenhum aviso registrado.</p>";
           }
           ?>
@@ -110,17 +166,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
   </div>
 
-  <!-- FAB -->
+  <!-- BOTÃO FLUTUANTE (FAB) -->
   <div class="fab" onclick="openCreateModal()">
     <i class="ri-add-line" style="font-size: 32px;"></i>
   </div>
 
-  <!-- MODAL -->
+  <!-- MODAL DE CADASTRO / EDIÇÃO -->
   <div class="modal-bg" id="noticeModal">
+
     <div class="modal" onclick="event.stopPropagation()">
+
+      <!-- Título do Modal -->
       <h2 id="modalTitle" style="margin-bottom: 24px;">Novo Aviso</h2>
+
+      <!-- Formulário do aviso -->
       <form method="post">
+
+        <!-- Ação (create/update/delete) -->
         <input type="hidden" name="action" id="formAction" value="create">
+
+        <!-- ID do aviso (para editar/excluir) -->
         <input type="hidden" name="id" id="noticeId">
 
         <label>Título</label>
@@ -134,24 +199,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select>
 
         <label>Mensagem</label>
-        <textarea class="textarea" name="body" id="noticeBody" rows="4" placeholder="Escreva o aviso..."
-          required></textarea>
+        <textarea class="textarea" name="body" id="noticeBody" rows="4" placeholder="Escreva o aviso..." required></textarea>
 
+        <!-- Botões -->
         <div style="display:flex; gap:12px; margin-top:24px;">
           <button type="button" class="btn secondary" style="flex:1;" onclick="closeNoticeModal()">Cancelar</button>
           <button type="submit" class="btn" style="flex:1;">Salvar</button>
         </div>
 
+        <!-- Botão excluir -->
         <div id="deleteBtnContainer" style="margin-top:16px; text-align:center; display:none;">
           <button type="submit" name="action" value="delete" class="btn secondary"
             style="color:var(--danger); border-color:var(--danger-bg); width:100%;"
-            onclick="return confirm('Tem certeza que deseja excluir este aviso?')">Excluir Aviso</button>
+            onclick="return confirm('Tem certeza que deseja excluir este aviso?')">
+            Excluir Aviso
+          </button>
         </div>
+
       </form>
     </div>
   </div>
 
   <script>
+    // Referências ao modal e aos campos do formulário
     const noticeModal = document.getElementById("noticeModal");
     const modalTitle = document.getElementById("modalTitle");
     const formAction = document.getElementById("formAction");
@@ -161,6 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     const noticeBody = document.getElementById("noticeBody");
     const deleteBtnContainer = document.getElementById("deleteBtnContainer");
 
+    // Abre o modal para criar novo aviso
     function openCreateModal() {
       modalTitle.textContent = "Novo Aviso";
       formAction.value = "create";
@@ -172,6 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       noticeModal.style.display = "flex";
     }
 
+    // Abre o modal carregando os dados do aviso selecionado
     function editNotice(data) {
       modalTitle.textContent = "Editar Aviso";
       formAction.value = "update";
@@ -183,10 +255,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       noticeModal.style.display = "flex";
     }
 
+    // Fecha o modal
     function closeNoticeModal() {
       noticeModal.style.display = "none";
     }
 
+    // Fecha modal clicando fora
     window.addEventListener("click", function (e) {
       if (e.target === noticeModal) {
         closeNoticeModal();
@@ -195,5 +269,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </script>
 
 </body>
-
 </html>
