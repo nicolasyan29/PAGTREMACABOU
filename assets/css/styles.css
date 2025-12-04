@@ -1,28 +1,28 @@
 :root {
-  /* Brand Colors */
+  
   --brand: #DC2626;
   --brand-light: #EF4444;
   --brand-dark: #991B1B;
   --brand-bg: #FEF2F2;
 
-  /* Neutral Colors */
+ 
   --bg: #F3F4F6;
-  /* Slightly darker gray for better contrast with white cards */
+ 
   --surface: #FFFFFF;
   --text: #111827;
-  /* Gray 900 */
+  
   --text-light: #6B7280;
-  /* Gray 500 */
+ 
   --muted: #9CA3AF;
-  /* Gray 400 */
+  
   --border: #E5E7EB;
-  /* Gray 200 */
+ 
 
-  /* Glassmorphism */
+ 
   --glass: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.2);
 
-  /* Status Colors */
+  
   --success: #10B981;
   --success-bg: #D1FAE5;
   --danger: #EF4444;
